@@ -51,22 +51,24 @@ public class FileReaderSpout extends BaseRichSpout {
         this.path = path;
     }
 
-    public void withDelimiter (String delimiter) {
+    public FileReaderSpout withDelimiter (String delimiter) {
         if (delimiter == null || delimiter.isEmpty()) {
             String errorString = "Delimiter must not be empty";
             LOG.error(errorString);
             throw new RuntimeException(errorString);
         }
         this.delimiter = delimiter;
+        return this;
     }
 
-    public void withOutputStream (String outputStream) {
+    public FileReaderSpout withOutputStream (String outputStream) {
         if (outputStream == null || outputStream.isEmpty()) {
             String errorString = "Output stream must not be empty";
             LOG.error(errorString);
             throw new RuntimeException(errorString);
         }
-        this.outputStream = delimiter;
+        this.outputStream = outputStream;
+        return this;
     }
 
     @Override
@@ -95,7 +97,7 @@ public class FileReaderSpout extends BaseRichSpout {
                     event.put(FIRST_NAME, result[0].trim());
                     event.put(LAST_NAME, result[1].trim());
                     List<Object> values = new ArrayList<>();
-                    values.add(new MyStreamlineEvent(event));
+                    values.add(new MyStreamlineEvent(event, outputStream));
                     spoutOutputCollector.emit(outputStream, values, UUID.randomUUID());
                 }
             }
@@ -113,12 +115,13 @@ public class FileReaderSpout extends BaseRichSpout {
 
     }
 
-    private class MyStreamlineEvent implements StreamlineEvent {
+    private static class MyStreamlineEvent implements StreamlineEvent {
 
-        Map<String, Object> unmodifiableMap;
-
-        private MyStreamlineEvent (Map<String, Object> fields) {
+        private final Map<String, Object> unmodifiableMap;
+        private final String outputStream;
+        private MyStreamlineEvent (Map<String, Object> fields, String outputStream) {
             unmodifiableMap = Collections.unmodifiableMap(fields);
+            this.outputStream = outputStream;
         }
 
         @Override
@@ -156,7 +159,7 @@ public class FileReaderSpout extends BaseRichSpout {
             Map<String, Object> newFieldsAndValues = new HashMap<>();
             newFieldsAndValues.putAll(unmodifiableMap);
             newFieldsAndValues.putAll(fieldsAndValues);
-            return new MyStreamlineEvent(newFieldsAndValues);
+            return new MyStreamlineEvent(newFieldsAndValues, this.outputStream);
         }
 
         @Override
@@ -164,7 +167,7 @@ public class FileReaderSpout extends BaseRichSpout {
             Map<String, Object> fieldsAndValues = new HashMap<>();
             fieldsAndValues.put(key, value);
             fieldsAndValues.putAll(unmodifiableMap);
-            return new MyStreamlineEvent(fieldsAndValues);
+            return new MyStreamlineEvent(fieldsAndValues, this.outputStream);
         }
 
         @Override
